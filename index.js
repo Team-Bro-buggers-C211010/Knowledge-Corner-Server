@@ -11,20 +11,27 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t8yk7hd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
 async function run() {
+  // Create a MongoClient with a MongoClientOptions object to set the Stable API version
+  const client = new MongoClient(uri, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  });
   try {
     const database = client.db("knowledge-library-DB");
     const libraryUsersCollection = database.collection("library-users");
 
+    app.get("/users", async (req, res) => {
+      let query = {};
+      if (req.query?.email) {
+        query = { email: req.query.email };
+      }
+      const result = await libraryUsersCollection.find(query).toArray();
+      res.send(result);
+    })
     app.post("/users", async (req, res) => {
       const user = req.body;
       console.log(user);
@@ -33,7 +40,7 @@ async function run() {
     });
 
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -42,7 +49,7 @@ async function run() {
     );
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
