@@ -23,7 +23,9 @@ async function run() {
   try {
     const database = client.db("knowledge-library-DB");
     const libraryUsersCollection = database.collection("library-users");
+    const booksCollection = database.collection("all-books");
 
+    // User Data API
     app.get("/users", async (req, res) => {
       let query = {};
       if (req.query?.email) {
@@ -38,6 +40,14 @@ async function run() {
       const result = await libraryUsersCollection.insertOne(user);
       res.send(result);
     });
+
+    // Books Data API
+    app.post("/books", async(req, res) => {
+      const book = req.body;
+      console.log(book);
+      const result = await booksCollection.insertOne(book);
+      res.send(result);
+    })
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
