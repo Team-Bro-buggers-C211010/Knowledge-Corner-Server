@@ -49,6 +49,16 @@ async function run() {
       res.send(result);
     })
 
+    // get single book details
+    app.get("/books", async (req, res) => {
+      let query = {};
+      if (req.query?.book_name) {
+        query = { book_name: req.query.book_name };
+      }
+      const result = await booksCollection.find(query).toArray();
+      res.send(result);
+    })
+
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
