@@ -1,15 +1,48 @@
 const express = require("express");
 const cors = require("cors");
+
+// import jwt
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true, // it is very important for send cookie to client
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.t8yk7hd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
+// create a personal Middleware myself
+const logger = async (req, res, next) => {
+  console.log("called: ", req.host, req.originalUrl);
+  next();
+};
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  console.log("tok tok token from middleware: ", token);
+  if (!token) {
+    return res.status(401).send({ message: "not authorized" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      console.error(err);
+      return res.status(401).send({ message: "Unauthorized" });
+    }
+    console.log("value in the token : ", decoded);
+    req.user = decoded;
+    next();
+  });
+};
 
 async function run() {
   // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -25,6 +58,31 @@ async function run() {
     const libraryUsersCollection = database.collection("library-users");
     const booksCollection = database.collection("all-books");
     const borrowedBooksCollection = database.collection("borrowed-books");
+
+    // Auth related api
+    app.post("/jwt", logger, async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      // create a token for user
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1hr",
+      });
+
+      // send cookie to client by http only
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
+    app.post('/logout', async(req, res) => {
+      const user = req.body;
+      console.log('Logging Out ',user);
+      res.clearCookie('token', {maxAge: 0}).send({success: true});
+    })
 
     // User Data API
     app.get("/users", async (req, res) => {
@@ -43,7 +101,7 @@ async function run() {
     });
 
     // Books Data API
-    app.post("/books", async(req, res) => {
+    app.post("/books", logger, verifyToken, async(req, res) => {
       const book = req.body;
       console.log(book);
       const result = await booksCollection.insertOne(book);
@@ -71,6 +129,7 @@ async function run() {
       const result = await borrowedBooksCollection.insertOne(borrowedBook);
       res.send(result);
     })
+
     app.get("/borrowed-books", async(req, res)=>{
       let query = {};
       if (req.query?.user_email && req.query?.book_name) {
@@ -82,6 +141,7 @@ async function run() {
       const result = await borrowedBooksCollection.find(query).toArray();
       res.send(result);
     })
+
     app.delete("/borrowed-books", async(req, res)=>{
       let query = {};
       if (req.query?.book_name) {
@@ -91,7 +151,7 @@ async function run() {
       res.send(result);
     })
 
-    app.put("/books", async (req, res) => {
+    app.put("/books", logger, verifyToken, async (req, res) => {
       const book = req.body;
       const filter = { book_name: book.book_name };
       const options = { upsert: true };
@@ -103,7 +163,7 @@ async function run() {
     })
 
     // get single book details
-    app.get("/books", async (req, res) => {
+    app.get("/books", logger, verifyToken, async (req, res) => {
       let query = {};
       if (req.query?.book_name) {
         query = { book_name: req.query.book_name };
