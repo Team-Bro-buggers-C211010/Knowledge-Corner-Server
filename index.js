@@ -56,6 +56,13 @@ async function run() {
       const result = await booksCollection.updateOne(filter, decrement);
       res.send(result);
     })
+    app.patch("/books/increase", async (req, res) => {
+      const book_name = req.query?.book_name;
+      const filter = { book_name: book_name };
+      const increment = { $inc: { book_quantity: 1 } };
+      const result = await booksCollection.updateOne(filter, increment);
+      res.send(result);
+    })
 
     // Borrowed Books API
     app.post("/borrowed-books", async(req, res)=>{
@@ -69,7 +76,18 @@ async function run() {
       if (req.query?.user_email && req.query?.book_name) {
         query = { $and : [{ user_email: req.query.user_email }, { book_name: req.query.book_name }] };
       }
+      if(req.query?.user_email) {
+        query = { user_email: req.query.user_email }
+      }
       const result = await borrowedBooksCollection.find(query).toArray();
+      res.send(result);
+    })
+    app.delete("/borrowed-books", async(req, res)=>{
+      let query = {};
+      if (req.query?.book_name) {
+        query = { book_name: req.query.book_name };
+      }
+      const result = await borrowedBooksCollection.deleteOne(query);
       res.send(result);
     })
 
