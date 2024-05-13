@@ -55,6 +55,9 @@ async function run() {
       if (req.query?.book_name) {
         query = { book_name: req.query.book_name };
       }
+      if(req.query?.book_quantity) {
+        query = { book_quantity: { $gt: req.query.book_quantity } }
+      }
       const result = await booksCollection.find(query).toArray();
       res.send(result);
     })
