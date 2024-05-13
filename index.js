@@ -49,12 +49,27 @@ async function run() {
       const result = await booksCollection.insertOne(book);
       res.send(result);
     })
+    app.patch("/books", async (req, res) => {
+      const book_name = req.query?.book_name;
+      const filter = { book_name: book_name };
+      const decrement = { $inc: { book_quantity: -1 } };
+      const result = await booksCollection.updateOne(filter, decrement);
+      res.send(result);
+    })
 
     // Borrowed Books API
     app.post("/borrowed-books", async(req, res)=>{
       const borrowedBook = req.body;
       console.log(borrowedBook);
       const result = await borrowedBooksCollection.insertOne(borrowedBook);
+      res.send(result);
+    })
+    app.get("/borrowed-books", async(req, res)=>{
+      let query = {};
+      if (req.query?.user_email && req.query?.book_name) {
+        query = { $and : [{ user_email: req.query.user_email }, { book_name: req.query.book_name }] };
+      }
+      const result = await borrowedBooksCollection.find(query).toArray();
       res.send(result);
     })
 
@@ -76,7 +91,7 @@ async function run() {
         query = { book_name: req.query.book_name };
       }
       if(req.query?.book_quantity) {
-        query = { book_quantity: { $gt: req.query.book_quantity } }
+        query = { book_quantity: { $gt: parseInt(req.query.book_quantity) } }
       }
       const result = await booksCollection.find(query).toArray();
       res.send(result);
