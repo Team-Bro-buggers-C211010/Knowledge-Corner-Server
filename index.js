@@ -24,6 +24,7 @@ async function run() {
     const database = client.db("knowledge-library-DB");
     const libraryUsersCollection = database.collection("library-users");
     const booksCollection = database.collection("all-books");
+    const borrowedBooksCollection = database.collection("borrowed-books");
 
     // User Data API
     app.get("/users", async (req, res) => {
@@ -46,6 +47,25 @@ async function run() {
       const book = req.body;
       console.log(book);
       const result = await booksCollection.insertOne(book);
+      res.send(result);
+    })
+
+    // Borrowed Books API
+    app.post("/borrowed-books", async(req, res)=>{
+      const borrowedBook = req.body;
+      console.log(borrowedBook);
+      const result = await borrowedBooksCollection.insertOne(borrowedBook);
+      res.send(result);
+    })
+
+    app.put("/books", async (req, res) => {
+      const book = req.body;
+      const filter = { book_name: book.book_name };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: book,
+      };
+      const result = await booksCollection.updateOne(filter, updateDoc, options);
       res.send(result);
     })
 
