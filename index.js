@@ -168,6 +168,9 @@ async function run() {
       if (req.query?.book_name) {
         query = { book_name: req.query.book_name };
       }
+      if (req.query?.book_category) {
+        query = { book_category: req.query.book_category };
+      }
       if(req.query?.book_quantity) {
         query = { book_quantity: { $gt: parseInt(req.query.book_quantity) } }
       }
