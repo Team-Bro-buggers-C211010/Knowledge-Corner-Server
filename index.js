@@ -13,7 +13,11 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      // "http://localhost:5173",
+      "https://knowledge-corner-55271.firebaseapp.com",
+      "https://knowledge-corner-55271.web.app",
+    ],
     credentials: true, // it is very important for send cookie to client
   })
 );
@@ -57,6 +61,11 @@ async function run() {
     const libraryUsersCollection = database.collection("library-users");
     const booksCollection = database.collection("all-books");
     const borrowedBooksCollection = database.collection("borrowed-books");
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    };
 
     // Auth related api
     app.post("/jwt", logger, async (req, res) => {
@@ -70,8 +79,8 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
         .send({ success: true });
     });
@@ -79,7 +88,9 @@ async function run() {
     app.post("/logout", async (req, res) => {
       const user = req.body;
       console.log("Logging Out ", user);
-      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+      res
+        .clearCookie("token", { ...cookieOptions, maxAge: 0 })
+        .send({ success: true });
     });
 
     // User Data API
@@ -160,7 +171,7 @@ async function run() {
       const { book_name, book_photo, book_author, book_category, book_rating } =
         book;
       console.log(book);
-      const filter = { book_name: bookName };;
+      const filter = { book_name: bookName };
       const updateDoc = {
         $set: {
           book_name,
@@ -191,10 +202,10 @@ async function run() {
     });
 
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
