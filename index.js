@@ -29,7 +29,6 @@ const logger = async (req, res, next) => {
 };
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
-  console.log("tok tok token from middleware: ", token);
   if (!token) {
     return res.status(401).send({ message: "not authorized" });
   }
@@ -62,7 +61,6 @@ async function run() {
     // Auth related api
     app.post("/jwt", logger, async (req, res) => {
       const user = req.body;
-      console.log(user);
       // create a token for user
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1hr",
@@ -78,11 +76,11 @@ async function run() {
         .send({ success: true });
     });
 
-    app.post('/logout', async(req, res) => {
+    app.post("/logout", async (req, res) => {
       const user = req.body;
-      console.log('Logging Out ',user);
-      res.clearCookie('token', {maxAge: 0}).send({success: true});
-    })
+      console.log("Logging Out ", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
 
     // User Data API
     app.get("/users", async (req, res) => {
@@ -92,7 +90,7 @@ async function run() {
       }
       const result = await libraryUsersCollection.find(query).toArray();
       res.send(result);
-    })
+    });
     app.post("/users", async (req, res) => {
       const user = req.body;
       console.log(user);
@@ -101,66 +99,80 @@ async function run() {
     });
 
     // Books Data API
-    app.post("/books", logger, verifyToken, async(req, res) => {
+    app.post("/books", logger, verifyToken, async (req, res) => {
       const book = req.body;
       console.log(book);
       const result = await booksCollection.insertOne(book);
       res.send(result);
-    })
+    });
     app.patch("/books", async (req, res) => {
       const book_name = req.query?.book_name;
       const filter = { book_name: book_name };
       const decrement = { $inc: { book_quantity: -1 } };
       const result = await booksCollection.updateOne(filter, decrement);
       res.send(result);
-    })
+    });
     app.patch("/books/increase", async (req, res) => {
       const book_name = req.query?.book_name;
       const filter = { book_name: book_name };
       const increment = { $inc: { book_quantity: 1 } };
       const result = await booksCollection.updateOne(filter, increment);
       res.send(result);
-    })
+    });
 
     // Borrowed Books API
-    app.post("/borrowed-books", async(req, res)=>{
+    app.post("/borrowed-books", async (req, res) => {
       const borrowedBook = req.body;
       console.log(borrowedBook);
       const result = await borrowedBooksCollection.insertOne(borrowedBook);
       res.send(result);
-    })
+    });
 
-    app.get("/borrowed-books", async(req, res)=>{
+    app.get("/borrowed-books", async (req, res) => {
       let query = {};
       if (req.query?.user_email && req.query?.book_name) {
-        query = { $and : [{ user_email: req.query.user_email }, { book_name: req.query.book_name }] };
+        query = {
+          $and: [
+            { user_email: req.query.user_email },
+            { book_name: req.query.book_name },
+          ],
+        };
       }
-      if(req.query?.user_email) {
-        query = { user_email: req.query.user_email }
+      if (req.query?.user_email) {
+        query = { user_email: req.query.user_email };
       }
       const result = await borrowedBooksCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
-    app.delete("/borrowed-books", async(req, res)=>{
+    app.delete("/borrowed-books", async (req, res) => {
       let query = {};
       if (req.query?.book_name) {
         query = { book_name: req.query.book_name };
       }
       const result = await borrowedBooksCollection.deleteOne(query);
       res.send(result);
-    })
+    });
 
-    app.put("/books", logger, verifyToken, async (req, res) => {
+    app.patch("/books/update", logger, verifyToken, async (req, res) => {
       const book = req.body;
-      const filter = { book_name: book.book_name };
-      const options = { upsert: true };
+      const bookName = req.query.book_name;
+      const { book_name, book_photo, book_author, book_category, book_rating } =
+        book;
+      console.log(book);
+      const filter = { book_name: bookName };;
       const updateDoc = {
-        $set: book,
+        $set: {
+          book_name,
+          book_photo,
+          book_author,
+          book_category,
+          book_rating,
+        },
       };
-      const result = await booksCollection.updateOne(filter, updateDoc, options);
+      const result = await booksCollection.updateOne(filter, updateDoc);
       res.send(result);
-    })
+    });
 
     // get single book details
     app.get("/books", logger, verifyToken, async (req, res) => {
@@ -171,12 +183,12 @@ async function run() {
       if (req.query?.book_category) {
         query = { book_category: req.query.book_category };
       }
-      if(req.query?.book_quantity) {
-        query = { book_quantity: { $gt: parseInt(req.query.book_quantity) } }
+      if (req.query?.book_quantity) {
+        query = { book_quantity: { $gt: parseInt(req.query.book_quantity) } };
       }
       const result = await booksCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
