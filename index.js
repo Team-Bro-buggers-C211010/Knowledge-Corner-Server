@@ -1,11 +1,16 @@
 const express = require("express");
 const cors = require("cors");
-
-// import jwt
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const xssClean = require("xss-clean");
+const dotenv = require("dotenv");
+const csrf = require("csurf");
 
-require("dotenv").config();
+dotenv.config();
+
 const app = express();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion } = require("mongodb");
@@ -14,13 +19,31 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 app.use(
   cors({
     origin: [
-      // "http://localhost:5173",
+      "http://localhost:5173",
       "https://knowledge-corner-55271.firebaseapp.com",
       "https://knowledge-corner-55271.web.app",
     ],
     credentials: true, // it is very important for send cookie to client
   })
 );
+
+// Security Middleware
+app.use(helmet()); // Add security headers
+app.use(mongoSanitize()); // Prevent NoSQL injection
+app.use(xssClean()); // Prevent XSS attacks
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+});
+app.use(limiter);
+
+// CSRF Protection
+const csrfProtection = csurf({ cookie: true });
+app.use(csrfProtection);
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -34,14 +57,14 @@ const logger = async (req, res, next) => {
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
   if (!token) {
-    return res.status(401).send({ message: "not authorized" });
+    return res.status(401).send({ message: "Not authorized" });
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       console.error(err);
       return res.status(401).send({ message: "Unauthorized" });
     }
-    console.log("value in the token : ", decoded);
+    // console.log("value in the token : ", decoded);
     req.user = decoded;
     next();
   });
@@ -94,7 +117,7 @@ async function run() {
     });
 
     // User Data API
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       let query = {};
       if (req.query?.email) {
         query = { email: req.query.email };
@@ -102,7 +125,7 @@ async function run() {
       const result = await libraryUsersCollection.find(query).toArray();
       res.send(result);
     });
-    app.post("/users", async (req, res) => {
+    app.post("/users", logger, async (req, res) => {
       const user = req.body;
       console.log(user);
       const result = await libraryUsersCollection.insertOne(user);
